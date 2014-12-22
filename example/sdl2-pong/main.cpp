@@ -55,7 +55,7 @@ Scene* createGameScene(TextureMap& textureMap)
   createBall("ball", scene, textureMap);
   Node p1 = createPaddle("p1", scene, textureMap);
   createPaddle("p2", scene, textureMap);
-  p1->prop<float>("x") = WINDOW_WIDTH - 20 - scene->nodesById.at("p1")->prop<int>("w");
+  p1->prop<float>(PROP_X) = WINDOW_WIDTH - 20 - scene->nodesById.at("p1")->prop<int>(PROP_W);
   setPaddleControls("p1", SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, scene);
   setPaddleControls("p2", SDL_SCANCODE_W, SDL_SCANCODE_S, scene);
 
@@ -68,13 +68,13 @@ Scene* createGameScene(TextureMap& textureMap)
 Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap)
 {
   Node ball = scene->nodes.add({
-    {"x", static_cast<float>(WINDOW_WIDTH / 2.0f)},
-    {"y", static_cast<float>(WINDOW_HEIGHT / 2.0f)},
-    {"vx", 1.0f},
-    {"vy", 1.0f}
+    {PROP_X, static_cast<float>(WINDOW_WIDTH / 2.0f)},
+    {PROP_Y, static_cast<float>(WINDOW_HEIGHT / 2.0f)},
+    {PROP_VX, 1.0f},
+    {PROP_VY, 1.0f}
   }, Sprite {textureMap.get("img/ball.png"), 0, 0});
-  ball->prop<int>("w", ball->get<Sprite>()->rect.w);
-  ball->prop<int>("h", ball->get<Sprite>()->rect.h);
+  ball->prop<int>(PROP_W, ball->get<Sprite>()->rect.w);
+  ball->prop<int>(PROP_H, ball->get<Sprite>()->rect.h);
   scene->nodesById.insert(std::make_pair(name, ball));
 
   ball->on<Update>(scene, [scene, name](Update const&) {
@@ -82,12 +82,12 @@ Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap)
     Node p1 = scene->nodesById.at("p1");
     Node p2 = scene->nodesById.at("p2");
 
-    float& x = ball->prop<float>("x");
-    float& y = ball->prop<float>("y");
-    int& w = ball->prop<int>("w");
-    int& h = ball->prop<int>("h");
-    float& vx = ball->prop<float>("vx");
-    float& vy = ball->prop<float>("vy");
+    float& x = ball->prop<float>(PROP_X);
+    float& y = ball->prop<float>(PROP_Y);
+    int& w = ball->prop<int>(PROP_W);
+    int& h = ball->prop<int>(PROP_H);
+    float& vx = ball->prop<float>(PROP_VX);
+    float& vy = ball->prop<float>(PROP_VY);
 
     vy = y <= 0 || y + h >= WINDOW_HEIGHT - 1 ? -vy : vy;
 
@@ -100,12 +100,12 @@ Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap)
     if(x + w < 0)
     {
       x = WINDOW_WIDTH / 2;
-      scene->nodesById.at("p1score")->prop<int>("value") += 1;
+      scene->nodesById.at("p1score")->prop<int>(PROP_VALUE) += 1;
     }
     else if(x > WINDOW_WIDTH)
     {
       x = WINDOW_WIDTH / 2;
-      scene->nodesById.at("p2score")->prop<int>("value") += 1;
+      scene->nodesById.at("p2score")->prop<int>(PROP_VALUE) += 1;
     }
     auto sprite = ball->get<Sprite>();
     sprite->rect.x = x;
@@ -119,20 +119,20 @@ Node createPaddle(std::string const& name, Scene* scene, TextureMap& textureMap)
 {
   float y = WINDOW_HEIGHT / 2.0f;
   Node paddle = scene->nodes.add({
-    {"x", 20.0f},
-    {"y", y},
-    {"vy", 0.0f}
+    {PROP_X, 20.0f},
+    {PROP_Y, y},
+    {PROP_VY, 0.0f}
   }, Sprite { textureMap.get("img/paddle.png"), 0, 0});
-  paddle->prop<int>("w", paddle->get<Sprite>()->rect.w);
-  paddle->prop<int>("h", paddle->get<Sprite>()->rect.h);
+  paddle->prop<int>(PROP_W, paddle->get<Sprite>()->rect.w);
+  paddle->prop<int>(PROP_H, paddle->get<Sprite>()->rect.h);
   scene->nodesById.insert(std::make_pair(name, paddle));
 
   paddle->on<Update>(scene, [scene, name](Update const&) {
     Node entity = scene->nodesById.at(name);
-    float& x = entity->prop<float>("x");
-    float& y = entity->prop<float>("y");
-    int& h = entity->prop<int>("h");
-    float& vy = entity->prop<float>("vy");
+    float& x = entity->prop<float>(PROP_X);
+    float& y = entity->prop<float>(PROP_Y);
+    int& h = entity->prop<int>(PROP_H);
+    float& vy = entity->prop<float>(PROP_VY);
 
     y += y + vy < 0 || y + h + vy >= WINDOW_HEIGHT ? 0 : vy;
 
@@ -147,15 +147,15 @@ Node createPaddle(std::string const& name, Scene* scene, TextureMap& textureMap)
 Node createScore(std::string const& name, int x, int y, Scene* scene)
 {
   Node score = scene->nodes.add({
-    {"value", 0},
-    {"old-value", 0}
+    {PROP_VALUE, 0},
+    {PROP_OLD_VALUE, 0}
   }, Text { "0", x, y });
   scene->nodesById.insert(std::make_pair(name, score));
 
   score->on<Update>(scene, [scene, name](Update const&) {
     Node entity = scene->nodesById.at(name);
-    int& value = entity->prop<int>("value");
-    int& oldValue = entity->prop<int>("old-value");
+    int& value = entity->prop<int>(PROP_VALUE);
+    int& oldValue = entity->prop<int>(PROP_OLD_VALUE);
     if(value != oldValue)
     {
       auto text = entity->get<Text>();
@@ -176,39 +176,39 @@ void setPaddleControls(std::string const& name, SDL_Scancode up, SDL_Scancode do
   entity->on<KeyPress>(scene, [scene, name, up, down](KeyPress const& e) {
     if(e.key.scancode == up)
     {
-      scene->nodesById.at(name)->prop<float>("vy") -= 1;
+      scene->nodesById.at(name)->prop<float>(PROP_VY) -= 1;
     }
     else if(e.key.scancode == down)
     {
-      scene->nodesById.at(name)->prop<float>("vy") += 1;
+      scene->nodesById.at(name)->prop<float>(PROP_VY) += 1;
     }
   });
   entity->on<KeyRelease>(scene, [scene, name, up, down](KeyRelease const& e) {
     if(e.key.scancode == up)
     {
-      scene->nodesById.at(name)->prop<float>("vy") += 1;
+      scene->nodesById.at(name)->prop<float>(PROP_VY) += 1;
     }
     else if(e.key.scancode == down)
     {
-      scene->nodesById.at(name)->prop<float>("vy") -= 1;
+      scene->nodesById.at(name)->prop<float>(PROP_VY) -= 1;
     }
   });
 }
 
 void collideWith(Node& ball, Node& paddle)
 {
-  float& x = ball->prop<float>("x");
-  float& y = ball->prop<float>("y");
-  int& w = ball->prop<int>("w");
-  int& h = ball->prop<int>("h");
-  float& vx = ball->prop<float>("vx");
-  float& vy = ball->prop<float>("vy");
+  float& x = ball->prop<float>(PROP_X);
+  float& y = ball->prop<float>(PROP_Y);
+  int& w = ball->prop<int>(PROP_W);
+  int& h = ball->prop<int>(PROP_H);
+  float& vx = ball->prop<float>(PROP_VX);
+  float& vy = ball->prop<float>(PROP_VY);
 
-  float& px = paddle->prop<float>("x");
-  float& py = paddle->prop<float>("y");
-  int& pw = paddle->prop<int>("w");
-  int& ph = paddle->prop<int>("h");
-  float& pvy = paddle->prop<float>("vy");
+  float& px = paddle->prop<float>(PROP_X);
+  float& py = paddle->prop<float>(PROP_Y);
+  int& pw = paddle->prop<int>(PROP_W);
+  int& ph = paddle->prop<int>(PROP_H);
+  float& pvy = paddle->prop<float>(PROP_VY);
 
   SDL_Rect ballDestination {static_cast<int>(x + vx), static_cast<int>(y + vy), w, h};
   SDL_Rect paddleDestination {static_cast<int>(px), static_cast<int>(py + pvy), pw, ph};

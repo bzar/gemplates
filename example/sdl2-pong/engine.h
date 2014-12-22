@@ -38,10 +38,10 @@ struct Scene
   std::unordered_map<std::string, Node> nodesById;
 };
 
-
+enum PropertyName { PROP_X, PROP_Y, PROP_W, PROP_H, PROP_VX, PROP_VY, PROP_VALUE, PROP_OLD_VALUE };
 struct Entity
 {
-  using PropertyKey = std::string;
+  using PropertyKey = int;
   using PropertyValue = boost::variant<float, int>;
   using PropertyMap = std::unordered_map<PropertyKey, PropertyValue>;
 
