@@ -1,5 +1,12 @@
 #include "engine.h"
 
+Node Scene::add(const Scene::NodeKey& key, N::Node&& node)
+{
+  auto ptr = nodes.add(std::forward<N::Node>(node));
+  nodesById.emplace(std::make_pair(key, ptr));
+  return ptr;
+}
+
 void gameloop(Scenery<Scene>& scenery, SDL_Renderer* renderer)
 {
 
@@ -38,6 +45,27 @@ bool update(Scene* scene)
 {
   scene->bus.process();
   scene->bus.immediate<Update>({});
+
+  for(Position& pos : scene->nodes.get<Position>())
+  {
+    pos.x += pos.vx;
+    pos.y += pos.vy;
+  }
+
+  for(Sprite& sprite : scene->nodes.get<Sprite>())
+  {
+    Position& pos = *sprite.node->get<Position>();
+    sprite.rect.x = static_cast<int>(pos.x);
+    sprite.rect.y = static_cast<int>(pos.y);
+    pos.w = sprite.rect.w;
+    pos.h = sprite.rect.h;
+  }
+  for(Text& text : scene->nodes.get<Text>())
+  {
+    Position& pos = *text.node->get<Position>();
+    text.rect.x = static_cast<int>(pos.x);
+    text.rect.y = static_cast<int>(pos.y);
+  }
   return true;
 }
 
@@ -68,6 +96,8 @@ void render(Scene* scene, SDL_Renderer* renderer)
       SDL_Surface* surface = TTF_RenderText_Solid(text.font, text.text.data(), text.color);
       text.rect.w = surface->w;
       text.rect.h = surface->h;
+      text.node->get<Position>()->w = surface->w;
+      text.node->get<Position>()->h = surface->h;
       text.texture = SDL_CreateTextureFromSurface(renderer, surface);
       SDL_FreeSurface(surface);
     }
@@ -92,7 +122,7 @@ Entity::Entity(std::initializer_list<Entity::PropertyMap::value_type>&& init) : 
 Entity::Entity(Entity::PropertyMap&& properties) : properties(properties)
 {
 }
-Sprite::Sprite(SDL_Texture* texture, int x, int y) : texture(texture), rect{x, y, 0, 0}
+Sprite::Sprite(SDL_Texture* texture) : texture(texture), rect{0, 0, 0, 0}
 {
   SDL_QueryTexture(texture, NULL, NULL, &rect.w, &rect.h);
 }
@@ -101,8 +131,8 @@ Text::Text()
 {
 }
 
-Text::Text(std::string const& text, int x, int y, SDL_Color color) :
-  text(text), color(color), texture(nullptr), rect{x, y, 0, 0}
+Text::Text(std::string const& text, SDL_Color color) :
+  text(text), color(color), texture(nullptr), rect{0, 0, 0, 0}
 {
 }
 
@@ -149,3 +179,4 @@ SDL_Texture* TextureMap::get(std::string const& name)
 
   return texture;
 }
+

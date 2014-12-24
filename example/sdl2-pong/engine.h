@@ -26,19 +26,23 @@ struct Update
 };
 
 struct Entity;
+struct Position;
 struct Sprite;
 struct Text;
 using EventBus = Eventful::QueuedBus<KeyPress, KeyRelease, Update>;
-using N = Nodedon<Entity, Sprite, Text>;
+using N = Nodedon<Entity, Position, Sprite, Text>;
 using Node = N::Pointer<N::Node>;
 struct Scene
 {
+  using NodeKey = std::string;
+  Node add(NodeKey const& key, N::Node&& node);
+
   N::Context nodes;
   EventBus bus;
-  std::unordered_map<std::string, Node> nodesById;
+  std::unordered_map<NodeKey, Node> nodesById;
 };
 
-enum PropertyName { PROP_X, PROP_Y, PROP_W, PROP_H, PROP_VX, PROP_VY, PROP_VALUE, PROP_OLD_VALUE };
+enum PropertyName { PROP_VALUE, PROP_OLD_VALUE };
 struct Entity
 {
   using PropertyKey = int;
@@ -69,19 +73,24 @@ struct Entity
   ContainerTuple<Eventful::Sub, KeyPress, KeyRelease, Update> subs;
 };
 
-struct Sprite
+struct Position
+{
+  float x, y, w, h, vx, vy;
+};
+
+struct Sprite : public N::NodeAware
 {
   Sprite() = default;
-  Sprite(SDL_Texture* texture, int x, int y);
+  Sprite(SDL_Texture* texture);
 
   SDL_Texture* texture;
   SDL_Rect rect;
 };
 
-struct Text
+struct Text : public N::NodeAware
 {
   Text();
-  Text(std::string const& text, int x, int y, SDL_Color color = {255,255,255,255});
+  Text(std::string const& text, SDL_Color color = {255,255,255,255});
 
   void update();
 
