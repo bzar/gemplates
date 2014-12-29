@@ -11,9 +11,9 @@ void gameloop(Scenery<Scene>& scenery, SDL_Renderer* renderer)
 {
 
   bool running = true;
-  while(running)
+  Scene* scene;
+  while(running && (scene = scenery.current()))
   {
-    Scene* scene = scenery.current();
     render(scene, renderer);
     SDL_Delay(16);
     running = input(scene) && update(scene);
@@ -80,6 +80,7 @@ void render(Scene* scene, SDL_Renderer* renderer)
     SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
     SDL_RenderDrawRect(renderer, &sprite->rect);
 #endif
+    SDL_SetTextureAlphaMod(sprite.texture, 255 * sprite.opacity);
     SDL_RenderCopy(renderer, sprite.texture, NULL, &sprite.rect);
   }
 

@@ -42,11 +42,11 @@ struct Scene
   std::unordered_map<NodeKey, Node> nodesById;
 };
 
-enum PropertyName { PROP_VALUE, PROP_OLD_VALUE };
+enum PropertyName { PROP_VALUE, PROP_OLD_VALUE, PROP_ACTIVE };
 struct Entity
 {
   using PropertyKey = int;
-  using PropertyValue = boost::variant<float, int>;
+  using PropertyValue = boost::variant<float, int, bool>;
   using PropertyMap = std::unordered_map<PropertyKey, PropertyValue>;
 
   Entity() = default;
@@ -57,11 +57,6 @@ struct Entity
   T& prop(PropertyKey const& key)
   {
     return boost::get<T>(properties.at(key));
-  }
-  template<typename T>
-  void prop(PropertyKey const& key, PropertyValue&& value)
-  {
-    properties.insert(std::make_pair(key, std::forward<PropertyValue>(value)));
   }
 
   template<typename T, typename F>
@@ -85,6 +80,7 @@ struct Sprite : public N::NodeAware
 
   SDL_Texture* texture;
   SDL_Rect rect;
+  float opacity = 1.0f;
 };
 
 struct Text : public N::NodeAware

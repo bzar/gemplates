@@ -1,15 +1,17 @@
 #include "engine.h"
 #include <sstream>
+#include <iostream>
 
 int const WINDOW_WIDTH = 800;
 int const WINDOW_HEIGHT = 480;
 
 void initialize(Scenery<Scene>& scenery, TextureMap& textureMap);
-Scene* createTitleScene(TextureMap& textureMap);
-Scene* createGameScene(TextureMap& textureMap);
+Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap);
+Scene* createGameScene(Scenery<Scene>& scenery, TextureMap& textureMap);
 Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap);
 Node createPaddle(std::string const& name, Scene* scene, TextureMap& textureMap);
 Node createScore(std::string const& name, float x, float y, Scene* scene);
+Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, TextureMap& textureMap, Scene* scene);
 void setPaddleControls(const std::string& name, SDL_Scancode up, SDL_Scancode down, Scene* scene);
 void collideWith(Node& ball, Node& paddle);
 
@@ -38,17 +40,66 @@ int main()
 
 void initialize(Scenery<Scene>& scenery, TextureMap& textureMap)
 {
-  scenery.insert("title", createTitleScene(textureMap));
-  scenery.insert("game", createGameScene(textureMap));
-  scenery.push("game");
+  scenery.insert("title", createTitleScene(scenery, textureMap));
+  scenery.insert("game", createGameScene(scenery, textureMap));
+  scenery.push("title");
 }
 
-Scene* createTitleScene(TextureMap& /*textureMap*/)
+Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap)
 {
-  return new Scene;
+  Scene* scene = new Scene;
+  Node background = scene->add("background", {});
+  scene->nodes.add(background, Position {0, 0, 0, 0, 0, 0});
+  scene->nodes.add(background, Sprite {textureMap.get("img/title.png")});
+
+  createTitleOption("start", "img/start.png", 60, 300, true, textureMap, scene);
+  createTitleOption("quit", "img/quit.png", 440, 300, false, textureMap, scene);
+
+  Node controller = scene->add("controller", {});
+  controller->on<KeyPress>(scene, [&scenery, scene](KeyPress const& e) {
+    Node start = scene->nodesById.at("start");
+    Node quit = scene->nodesById.at("quit");
+    if(e.key.scancode == SDL_SCANCODE_LEFT || e.key.scancode == SDL_SCANCODE_RIGHT)
+    {
+      start->prop<bool>(PROP_ACTIVE) = !start->prop<bool>(PROP_ACTIVE);
+      quit->prop<bool>(PROP_ACTIVE) = !quit->prop<bool>(PROP_ACTIVE);
+    }
+    else if(e.key.scancode == SDL_SCANCODE_RETURN)
+    {
+      if(start->prop<bool>(PROP_ACTIVE))
+      {
+        scenery.push("game");
+        Scene* s = scenery.current();
+
+        Node ball = s->nodesById.at("ball");
+        Node paddle1 = s->nodesById.at("p1");
+        Node paddle2 = s->nodesById.at("p2");
+        Node p1score = s->nodesById.at("p1score");
+        Node p2score = s->nodesById.at("p2score");
+
+        ball->get<Position>()->x = WINDOW_WIDTH / 2;
+        ball->get<Position>()->y = WINDOW_HEIGHT / 2;
+
+        paddle1->get<Position>()->y = WINDOW_HEIGHT / 2;
+        paddle2->get<Position>()->y = WINDOW_HEIGHT / 2;
+
+        p1score->prop<int>(PROP_VALUE) = 0;
+        p2score->prop<int>(PROP_VALUE) = 0;
+      }
+      else
+      {
+        scenery.pop();
+      }
+    }
+    else if(e.key.scancode == SDL_SCANCODE_ESCAPE)
+    {
+      scenery.pop();
+    }
+  });
+  return scene;
 }
 
-Scene* createGameScene(TextureMap& textureMap)
+Scene* createGameScene(Scenery<Scene>& scenery, TextureMap& textureMap)
 {
   Scene* scene = new Scene;
 
@@ -61,6 +112,14 @@ Scene* createGameScene(TextureMap& textureMap)
 
   createScore("p1score", WINDOW_WIDTH - 30, 10, scene);
   createScore("p2score", 10, 10, scene);
+
+  Node controller = scene->add("controller", {});
+  controller->on<KeyPress>(scene, [&scenery, scene](KeyPress const& e) {
+    if(e.key.scancode == SDL_SCANCODE_ESCAPE)
+    {
+      scenery.pop();
+    }
+  });
 
   return scene;
 }
@@ -138,6 +197,23 @@ Node createScore(std::string const& name, float x, float y, Scene* scene)
   });
 
   return score;
+}
+Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, TextureMap& textureMap, Scene* scene)
+{
+  Node node = scene->add(name, {
+    {PROP_ACTIVE, active}
+  });
+  scene->nodes.add(node, Position {x, y, 0, 0, 0, 0});
+  scene->nodes.add(node, Sprite {textureMap.get(image)});
+
+  node->on<Update>(scene, [scene, name](Update const&) {
+    Node node = scene->nodesById.at(name);
+    bool& active = node->prop<bool>(PROP_ACTIVE);
+    Sprite& sprite = *node->get<Sprite>();
+    sprite.opacity = active ? 1.0f : 0.5f;
+  });
+
+  return node;
 }
 
 void setPaddleControls(std::string const& name, SDL_Scancode up, SDL_Scancode down, Scene* scene)
