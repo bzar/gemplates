@@ -56,13 +56,20 @@ public:
   class Pointer
   {
   public:
-    Pointer() : cabinet(nullptr), id(0) {}
+    Pointer() : cabinet(nullptr), id(0), version(0), cached(nullptr) {}
     Pointer(Pointer const&) = default;
     Pointer& operator=(Pointer const&) = default;
 
     T& operator*() const
     {
-      return cabinet->get(id);
+      if(!cached || version != cabinet->version)
+      {
+        // caching does not break internal state
+        Pointer* p = const_cast<Pointer*>(this);
+        p->cached = &cabinet->get(id);
+        p->version = cabinet->version;
+      }
+      return *cached;
     }
     T* operator->() const
     {
@@ -79,26 +86,34 @@ public:
 
   private:
     friend class Cabinet<T>;
-    Pointer(Cabinet* cabinet, std::size_t id) : cabinet(cabinet), id(id) {}
+    Pointer(Cabinet* cabinet, std::size_t id, unsigned int version, T* cached) : cabinet(cabinet), id(id), version(version), cached(cached) {}
     Cabinet* cabinet;
     std::size_t id;
+    unsigned int version;
+    T* cached;
   };
 
   Pointer insert(T&& t)
   {
     std::size_t id = next;
     map.insert(std::make_pair(id, contents.size()));
-    contents.push_back({id, t});
     ++next;
-    return {this, id};
+
+    size_type prevCapacity = contents.capacity();
+    contents.push_back({id, t});
+    if(contents.capacity() != prevCapacity)
+    {
+      ++version;
+    }
+    return {this, id, version, &contents.back().content};
   }
 
-  std::size_t size()
+  std::size_t size() const
   {
     return contents.size();
   }
 
-  T& at(std::size_t index)
+  T& at(std::size_t index) const
   {
     return contents.at(index).content;
   }
@@ -110,6 +125,7 @@ public:
     map.erase(f.id);
     f = std::move(contents.back());
     contents.pop_back();
+    ++version;
   }
 
   iterator begin() { return iterator(contents.begin()); }
@@ -135,4 +151,5 @@ private:
   std::size_t next = 1;
   std::unordered_map<std::size_t, std::size_t> map;
   std::vector<Folder> contents;
+  unsigned int version = 0;
 };

@@ -179,11 +179,11 @@ Node createScore(std::string const& name, float x, float y, Scene* scene)
     int& oldValue = score->prop<int>(PROP_OLD_VALUE);
     if(value != oldValue)
     {
-      auto text = score->get<Text>();
+      Text& text = *score->get<Text>();
       std::ostringstream oss;
       oss << value;
-      text->text = oss.str();
-      text->update();
+      text.text = oss.str();
+      text.update();
       oldValue = value;
     }
   });
