@@ -4,10 +4,11 @@ Node Scene::add(const Scene::NodeKey& key, N::Node&& node)
 {
   auto ptr = nodes.add(std::forward<N::Node>(node));
   nodesById.emplace(std::make_pair(key, ptr));
+  ptr->scene = this;
   return ptr;
 }
 
-void gameloop(Scenery<Scene>& scenery, SDL_Renderer* renderer)
+void gameloop(S::Manager& scenery, SDL_Renderer* renderer)
 {
 
   bool running = true;

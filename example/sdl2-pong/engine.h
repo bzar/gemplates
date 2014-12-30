@@ -25,6 +25,19 @@ struct Update
 
 };
 
+
+class TextureMap
+{
+public:
+  TextureMap() = default;
+  TextureMap(SDL_Renderer* renderer);
+  ~TextureMap();
+  SDL_Texture* get(std::string const& name);
+private:
+  SDL_Renderer* renderer;
+  std::unordered_map<std::string, SDL_Texture*> map;
+};
+
 struct Entity;
 struct Position;
 struct Sprite;
@@ -32,14 +45,20 @@ struct Text;
 using EventBus = Eventful::QueuedBus<KeyPress, KeyRelease, Update>;
 using N = Nodedon<Entity, Position, Sprite, Text>;
 using Node = N::Pointer<N::Node>;
-struct Scene
+
+struct Scene;
+using S = Scenery<Scene>;
+
+struct Scene : public S::ManagerAware
 {
+  Scene(SDL_Renderer* renderer) : textureMap(renderer) {}
   using NodeKey = std::string;
   Node add(NodeKey const& key, N::Node&& node);
 
   N::Context nodes;
   EventBus bus;
   std::unordered_map<NodeKey, Node> nodesById;
+  TextureMap textureMap;
 };
 
 enum PropertyName { PROP_VALUE, PROP_OLD_VALUE, PROP_ACTIVE };
@@ -60,10 +79,11 @@ struct Entity
   }
 
   template<typename T, typename F>
-  void on(Scene* scene, F&& f)
+  void on(F&& f)
   {
     subs.template get<T>() = scene->bus.sub<T>(std::forward<F>(f));
   }
+  Scene* scene;
   PropertyMap properties;
   ContainerTuple<Eventful::Sub, KeyPress, KeyRelease, Update> subs;
 };
@@ -98,18 +118,7 @@ struct Text : public N::NodeAware
   static TTF_Font* font;
 };
 
-class TextureMap
-{
-public:
-  TextureMap(SDL_Renderer* renderer);
-  ~TextureMap();
-  SDL_Texture* get(std::string const& name);
-private:
-  SDL_Renderer* renderer;
-  std::unordered_map<std::string, SDL_Texture*> map;
-};
-
-void gameloop(Scenery<Scene>& scenery, SDL_Renderer* renderer);
+void gameloop(S::Manager& scenery, SDL_Renderer* renderer);
 bool input(Scene* scene);
 bool update(Scene* scene);
 void render(Scene* scene, SDL_Renderer* renderer);

@@ -6,72 +6,103 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <type_traits>
 
 template<typename Scene, typename Key = std::string>
-class Scenery
+struct Scenery
 {
-public:
-  template<typename... Args>
-  void create(Key&& key, Args&&... args)
-  {
-    scenes.emplace(std::make_pair(std::forward<Key>(key), std::unique_ptr<Scene>(new Scene{std::forward<Args>(args)...})));
-  }
+  class Manager;
 
-  void insert(Key&& key, Scene* scene)
+  struct ManagerAware
   {
-    scenes.insert(std::make_pair(std::forward<Key>(key), std::unique_ptr<Scene>(scene)));
-  }
+    Manager* manager;
+  };
 
-  void remove(Key const& key)
+  class Manager
   {
-    auto iter = scenes.find(key);
-    if(iter != scenes.end())
+  public:
+    template<typename... Args>
+    void create(Key&& key, Args&&... args)
     {
-      Scene* scene = iter->second.get();
-      auto toRemove = std::remove_if(stack.begin(), stack.end(), [scene](Scene* s){ return s == scene; });
-      if(toRemove != stack.end())
+      auto ret = scenes.emplace(std::make_pair(std::forward<Key>(key), std::unique_ptr<Scene>(new Scene{std::forward<Args>(args)...})));
+      if(ret.second)
       {
-        stack.erase(toRemove);
+        setManagerPointer(ret.first->second);
       }
-      scenes.erase(iter);
     }
-  }
 
-  void push(Key const& key)
-  {
-    auto iter = scenes.find(key);
-    if(iter == scenes.end())
-      return;
+    void insert(Key&& key, Scene* scene)
+    {
+      auto ret = scenes.insert(std::make_pair(std::forward<Key>(key), std::unique_ptr<Scene>(scene)));
+      if(ret.second)
+      {
+        setManagerPointer(ret.first->second);
+      }
+    }
 
-    stack.push_back(iter->second.get());
-  }
+    void remove(Key const& key)
+    {
+      auto iter = scenes.find(key);
+      if(iter != scenes.end())
+      {
+        Scene* scene = iter->second.get();
+        auto toRemove = std::remove_if(stack.begin(), stack.end(), [scene](Scene* s){ return s == scene; });
+        if(toRemove != stack.end())
+        {
+          stack.erase(toRemove);
+        }
+        scenes.erase(iter);
+      }
+    }
 
-  void pop()
-  {
-    stack.pop_back();
-  }
+    void push(Key const& key)
+    {
+      auto iter = scenes.find(key);
+      if(iter == scenes.end())
+        return;
 
-  void set(Key const& key)
-  {
-    auto iter = scenes.find(key);
-    if(iter == scenes.end())
-      return;
+      stack.push_back(iter->second.get());
+    }
 
-    stack.clear();
-    stack.push_back(iter->second.get());
-  }
+    void pop()
+    {
+      stack.pop_back();
+    }
 
-  Scene* current()
-  {
-    if(stack.empty())
-      return nullptr;
+    void set(Key const& key)
+    {
+      auto iter = scenes.find(key);
+      if(iter == scenes.end())
+        return;
 
-    return stack.back();
-  }
+      stack.clear();
+      stack.push_back(iter->second.get());
+    }
 
-private:
-  std::vector<Scene*> stack;
-  std::unordered_map<Key, std::unique_ptr<Scene>> scenes;
+    Scene* current()
+    {
+      if(stack.empty())
+        return nullptr;
+
+      return stack.back();
+    }
+
+  private:
+    template<typename S>
+    typename std::enable_if<std::is_base_of<ManagerAware, S>::value, void>::type
+    setManagerPointer(std::unique_ptr<S>& s)
+    {
+      s->manager = this;
+    }
+    template<typename S>
+    typename std::enable_if<!std::is_base_of<ManagerAware, S>::value, void>::type
+    setManagerPointer(std::unique_ptr<S>&)
+    {
+    }
+
+    std::vector<Scene*> stack;
+    std::unordered_map<Key, std::unique_ptr<Scene>> scenes;
+  };
+
 };
-
 #endif //SCENERY_H

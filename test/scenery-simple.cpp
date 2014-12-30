@@ -13,7 +13,7 @@ struct Scene
 
 int main()
 {
-  Scenery<Scene> scenery;
+  Scenery<Scene>::Manager scenery;
   scenery.create("first", 1);
   scenery.push("first");
   scenery.insert("second", new Scene{2});

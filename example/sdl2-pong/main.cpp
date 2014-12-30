@@ -5,15 +5,17 @@
 int const WINDOW_WIDTH = 800;
 int const WINDOW_HEIGHT = 480;
 
-void initialize(Scenery<Scene>& scenery, TextureMap& textureMap);
-Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap);
-Scene* createGameScene(Scenery<Scene>& scenery, TextureMap& textureMap);
-Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap);
-Node createPaddle(std::string const& name, Scene* scene, TextureMap& textureMap);
+Scene* createTitleScene();
+Scene* createGameScene();
+Node createBall(std::string const& name, Scene* scene);
+Node createPaddle(std::string const& name, Scene* scene);
 Node createScore(std::string const& name, float x, float y, Scene* scene);
-Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, TextureMap& textureMap, Scene* scene);
-void setPaddleControls(const std::string& name, SDL_Scancode up, SDL_Scancode down, Scene* scene);
-void collideWith(Node& ball, Node& paddle);
+Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, Scene* scene);
+void setPaddleControls(Node paddle, SDL_Scancode up, SDL_Scancode down);
+void collideWith(Node ball, Node paddle);
+
+SDL_Window* window;
+SDL_Renderer* renderer;
 
 int main()
 {
@@ -21,12 +23,14 @@ int main()
   IMG_Init(IMG_INIT_PNG);
   TTF_Init();
 
-  SDL_Window* window = SDL_CreateWindow("Gemplates sdl2-pong example", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+  window = SDL_CreateWindow("Gemplates sdl2-pong example", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+  renderer = SDL_CreateRenderer(window, -1, 0);
 
-  TextureMap textureMap(renderer);
-  Scenery<Scene> scenery;
-  initialize(scenery, textureMap);
+  S::Manager scenery;
+  scenery.insert("title", createTitleScene());
+  scenery.insert("game", createGameScene());
+  scenery.push("title");
+
   gameloop(scenery, renderer);
 
   SDL_DestroyRenderer(renderer);
@@ -38,27 +42,20 @@ int main()
   return 0;
 }
 
-void initialize(Scenery<Scene>& scenery, TextureMap& textureMap)
+Scene* createTitleScene()
 {
-  scenery.insert("title", createTitleScene(scenery, textureMap));
-  scenery.insert("game", createGameScene(scenery, textureMap));
-  scenery.push("title");
-}
-
-Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap)
-{
-  Scene* scene = new Scene;
+  Scene* scene = new Scene(renderer);
   Node background = scene->add("background", {});
   scene->nodes.add(background, Position {0, 0, 0, 0, 0, 0});
-  scene->nodes.add(background, Sprite {textureMap.get("img/title.png")});
+  scene->nodes.add(background, Sprite {scene->textureMap.get("img/title.png")});
 
-  createTitleOption("start", "img/start.png", 60, 300, true, textureMap, scene);
-  createTitleOption("quit", "img/quit.png", 440, 300, false, textureMap, scene);
+  createTitleOption("start", "img/start.png", 60, 300, true, scene);
+  createTitleOption("quit", "img/quit.png", 440, 300, false, scene);
 
   Node controller = scene->add("controller", {});
-  controller->on<KeyPress>(scene, [&scenery, scene](KeyPress const& e) {
-    Node start = scene->nodesById.at("start");
-    Node quit = scene->nodesById.at("quit");
+  controller->on<KeyPress>([controller](KeyPress const& e) {
+    Node start = controller->scene->nodesById.at("start");
+    Node quit = controller->scene->nodesById.at("quit");
     if(e.key.scancode == SDL_SCANCODE_LEFT || e.key.scancode == SDL_SCANCODE_RIGHT)
     {
       start->prop<bool>(PROP_ACTIVE) = !start->prop<bool>(PROP_ACTIVE);
@@ -68,8 +65,8 @@ Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap)
     {
       if(start->prop<bool>(PROP_ACTIVE))
       {
-        scenery.push("game");
-        Scene* s = scenery.current();
+        controller->scene->manager->push("game");
+        Scene* s = controller->scene->manager->current();
 
         Node ball = s->nodesById.at("ball");
         Node paddle1 = s->nodesById.at("p1");
@@ -88,52 +85,51 @@ Scene* createTitleScene(Scenery<Scene>& scenery, TextureMap& textureMap)
       }
       else
       {
-        scenery.pop();
+        controller->scene->manager->pop();
       }
     }
     else if(e.key.scancode == SDL_SCANCODE_ESCAPE)
     {
-      scenery.pop();
+      controller->scene->manager->pop();
     }
   });
   return scene;
 }
 
-Scene* createGameScene(Scenery<Scene>& scenery, TextureMap& textureMap)
+Scene* createGameScene()
 {
-  Scene* scene = new Scene;
+  Scene* scene = new Scene(renderer);
 
-  createBall("ball", scene, textureMap);
-  Node p1 = createPaddle("p1", scene, textureMap);
-  createPaddle("p2", scene, textureMap);
+  createBall("ball", scene);
+  Node p1 = createPaddle("p1", scene);
+  Node p2 = createPaddle("p2", scene);
   p1->components.get<Position>()->x = WINDOW_WIDTH - 44;
-  setPaddleControls("p1", SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, scene);
-  setPaddleControls("p2", SDL_SCANCODE_W, SDL_SCANCODE_S, scene);
+  setPaddleControls(p1, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN);
+  setPaddleControls(p2, SDL_SCANCODE_W, SDL_SCANCODE_S);
 
   createScore("p1score", WINDOW_WIDTH - 30, 10, scene);
   createScore("p2score", 10, 10, scene);
 
   Node controller = scene->add("controller", {});
-  controller->on<KeyPress>(scene, [&scenery, scene](KeyPress const& e) {
+  controller->on<KeyPress>([controller](KeyPress const& e) {
     if(e.key.scancode == SDL_SCANCODE_ESCAPE)
     {
-      scenery.pop();
+      controller->scene->manager->pop();
     }
   });
 
   return scene;
 }
 
-Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap)
+Node createBall(std::string const& name, Scene* scene)
 {
   Node ball = scene->add(name, { });
   scene->nodes.add(ball, Position { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f, 0, 0, 1, 1 });
-  scene->nodes.add(ball, Sprite {textureMap.get("img/ball.png")});
+  scene->nodes.add(ball, Sprite {scene->textureMap.get("img/ball.png")});
 
-  ball->on<Update>(scene, [scene, name](Update const&) {
-    Node ball = scene->nodesById.at(name);
-    Node p1 = scene->nodesById.at("p1");
-    Node p2 = scene->nodesById.at("p2");
+  ball->on<Update>([ball](Update const&) {
+    Node p1 = ball->scene->nodesById.at("p1");
+    Node p2 = ball->scene->nodesById.at("p2");
 
     Position& pos = *ball->components.get<Position>();
 
@@ -145,28 +141,28 @@ Node createBall(std::string const& name, Scene* scene, TextureMap& textureMap)
     if(pos.x + pos.w < 0)
     {
       pos.x = WINDOW_WIDTH / 2;
-      scene->nodesById.at("p1score")->prop<int>(PROP_VALUE) += 1;
+      ball->scene->nodesById.at("p1score")->prop<int>(PROP_VALUE) += 1;
     }
     else if(pos.x > WINDOW_WIDTH)
     {
       pos.x = WINDOW_WIDTH / 2;
-      scene->nodesById.at("p2score")->prop<int>(PROP_VALUE) += 1;
+      ball->scene->nodesById.at("p2score")->prop<int>(PROP_VALUE) += 1;
     }
   });
 
   return ball;
 }
 
-Node createPaddle(std::string const& name, Scene* scene, TextureMap& textureMap)
+Node createPaddle(std::string const& name, Scene* scene)
 {
   Node paddle = scene->add(name, {});
   scene->nodes.add(paddle, Position { 20,  WINDOW_HEIGHT / 2.0f, 0, 0, 0, 0 });
-  scene->nodes.add(paddle, Sprite { textureMap.get("img/paddle.png")});
+  scene->nodes.add(paddle, Sprite { scene->textureMap.get("img/paddle.png")});
 
-  paddle->on<Update>(scene, [scene, name](Update const&) {
-    Node entity = scene->nodesById.at(name);
-    Position& pos = *entity->components.get<Position>();
-    pos.vy = pos.y <= 0 || pos.y + pos.h >= WINDOW_HEIGHT - 1 ? 0 : pos.vy;
+  paddle->on<Update>([paddle](Update const&) {
+    Position& pos = *paddle->components.get<Position>();
+    pos.y = pos.y < 0 ? 0 : pos.y;
+    pos.y = pos.y + pos.h > WINDOW_HEIGHT - 1 ? WINDOW_HEIGHT - 1 - pos.h : pos.y;
   });
 
   return paddle;
@@ -181,13 +177,12 @@ Node createScore(std::string const& name, float x, float y, Scene* scene)
   scene->nodes.add(score, Position { x, y, 0, 0, 0, 0 });
   scene->nodes.add(score, Text { "0" });
 
-  score->on<Update>(scene, [scene, name](Update const&) {
-    Node entity = scene->nodesById.at(name);
-    int& value = entity->prop<int>(PROP_VALUE);
-    int& oldValue = entity->prop<int>(PROP_OLD_VALUE);
+  score->on<Update>([score](Update const&) {
+    int& value = score->prop<int>(PROP_VALUE);
+    int& oldValue = score->prop<int>(PROP_OLD_VALUE);
     if(value != oldValue)
     {
-      auto text = entity->get<Text>();
+      auto text = score->get<Text>();
       std::ostringstream oss;
       oss << value;
       text->text = oss.str();
@@ -198,16 +193,15 @@ Node createScore(std::string const& name, float x, float y, Scene* scene)
 
   return score;
 }
-Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, TextureMap& textureMap, Scene* scene)
+Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, Scene* scene)
 {
   Node node = scene->add(name, {
     {PROP_ACTIVE, active}
   });
   scene->nodes.add(node, Position {x, y, 0, 0, 0, 0});
-  scene->nodes.add(node, Sprite {textureMap.get(image)});
+  scene->nodes.add(node, Sprite {scene->textureMap.get(image)});
 
-  node->on<Update>(scene, [scene, name](Update const&) {
-    Node node = scene->nodesById.at(name);
+  node->on<Update>([node](Update const&) {
     bool& active = node->prop<bool>(PROP_ACTIVE);
     Sprite& sprite = *node->get<Sprite>();
     sprite.opacity = active ? 1.0f : 0.5f;
@@ -216,32 +210,31 @@ Node createTitleOption(std::string const& name, std::string const& image, float 
   return node;
 }
 
-void setPaddleControls(std::string const& name, SDL_Scancode up, SDL_Scancode down, Scene* scene)
+void setPaddleControls(Node paddle, SDL_Scancode up, SDL_Scancode down)
 {
-  Node entity = scene->nodesById.at(name);
-  entity->on<KeyPress>(scene, [scene, name, up, down](KeyPress const& e) {
+  paddle->on<KeyPress>([paddle, up, down](KeyPress const& e) {
     if(e.key.scancode == up)
     {
-      scene->nodesById.at(name)->components.get<Position>()->vy -= 1;
+      paddle->components.get<Position>()->vy -= 1;
     }
     else if(e.key.scancode == down)
     {
-      scene->nodesById.at(name)->components.get<Position>()->vy += 1;
+      paddle->components.get<Position>()->vy += 1;
     }
   });
-  entity->on<KeyRelease>(scene, [scene, name, up, down](KeyRelease const& e) {
+  paddle->on<KeyRelease>([paddle, up, down](KeyRelease const& e) {
     if(e.key.scancode == up)
     {
-      scene->nodesById.at(name)->components.get<Position>()->vy += 1;
+      paddle->components.get<Position>()->vy += 1;
     }
     else if(e.key.scancode == down)
     {
-      scene->nodesById.at(name)->components.get<Position>()->vy -= 1;
+      paddle->components.get<Position>()->vy -= 1;
     }
   });
 }
 
-void collideWith(Node& ball, Node& paddle)
+void collideWith(Node ball, Node paddle)
 {
   Position& bp = *ball->components.get<Position>();
   Position& pp = *paddle->components.get<Position>();
