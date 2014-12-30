@@ -55,6 +55,14 @@ struct Scene : public S::ManagerAware
   using NodeKey = std::string;
   Node add(NodeKey const& key, N::Node&& node);
 
+  template<typename Component, typename... Components>
+  Node add(NodeKey const& key, N::Node&& node, Component&& c, Components&&... cs)
+  {
+    Node n = add(key, std::forward<N::Node>(node));
+    nodes.add(n, std::forward<Component>(c), std::forward<Components...>(cs...));
+    return n;
+  }
+
   N::Context nodes;
   EventBus bus;
   std::unordered_map<NodeKey, Node> nodesById;

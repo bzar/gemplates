@@ -45,9 +45,9 @@ int main()
 Scene* createTitleScene()
 {
   Scene* scene = new Scene(renderer);
-  Node background = scene->add("background", {});
-  scene->nodes.add(background, Position {0, 0, 0, 0, 0, 0});
-  scene->nodes.add(background, Sprite {scene->textureMap.get("img/title.png")});
+  scene->add("background", {},
+             Position {0, 0, 0, 0, 0, 0},
+             Sprite {scene->textureMap.get("img/title.png")});
 
   createTitleOption("start", "img/start.png", 60, 300, true, scene);
   createTitleOption("quit", "img/quit.png", 440, 300, false, scene);
@@ -123,9 +123,9 @@ Scene* createGameScene()
 
 Node createBall(std::string const& name, Scene* scene)
 {
-  Node ball = scene->add(name, { });
-  scene->nodes.add(ball, Position { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f, 0, 0, 1, 1 });
-  scene->nodes.add(ball, Sprite {scene->textureMap.get("img/ball.png")});
+  Node ball = scene->add(name, { },
+                         Position { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f, 0, 0, 1, 1 },
+                         Sprite {scene->textureMap.get("img/ball.png")});
 
   ball->on<Update>([ball](Update const&) {
     Node p1 = ball->scene->nodesById.at("p1");
@@ -155,9 +155,9 @@ Node createBall(std::string const& name, Scene* scene)
 
 Node createPaddle(std::string const& name, Scene* scene)
 {
-  Node paddle = scene->add(name, {});
-  scene->nodes.add(paddle, Position { 20,  WINDOW_HEIGHT / 2.0f, 0, 0, 0, 0 });
-  scene->nodes.add(paddle, Sprite { scene->textureMap.get("img/paddle.png")});
+  Node paddle = scene->add(name, {},
+                           Position { 20,  WINDOW_HEIGHT / 2.0f, 0, 0, 0, 0 },
+                           Sprite { scene->textureMap.get("img/paddle.png")});
 
   paddle->on<Update>([paddle](Update const&) {
     Position& pos = *paddle->components.get<Position>();
@@ -170,12 +170,9 @@ Node createPaddle(std::string const& name, Scene* scene)
 
 Node createScore(std::string const& name, float x, float y, Scene* scene)
 {
-  Node score = scene->add(name, {
-    {PROP_VALUE, 0},
-    {PROP_OLD_VALUE, 0}
-  });
-  scene->nodes.add(score, Position { x, y, 0, 0, 0, 0 });
-  scene->nodes.add(score, Text { "0" });
+  Node score = scene->add(name, { {PROP_VALUE, 0}, {PROP_OLD_VALUE, 0} },
+                          Position { x, y, 0, 0, 0, 0 },
+                          Text { "0" });
 
   score->on<Update>([score](Update const&) {
     int& value = score->prop<int>(PROP_VALUE);
@@ -195,11 +192,9 @@ Node createScore(std::string const& name, float x, float y, Scene* scene)
 }
 Node createTitleOption(std::string const& name, std::string const& image, float x, float y, bool active, Scene* scene)
 {
-  Node node = scene->add(name, {
-    {PROP_ACTIVE, active}
-  });
-  scene->nodes.add(node, Position {x, y, 0, 0, 0, 0});
-  scene->nodes.add(node, Sprite {scene->textureMap.get(image)});
+  Node node = scene->add(name, { {PROP_ACTIVE, active} },
+                         Position {x, y, 0, 0, 0, 0},
+                         Sprite {scene->textureMap.get(image)});
 
   node->on<Update>([node](Update const&) {
     bool& active = node->prop<bool>(PROP_ACTIVE);

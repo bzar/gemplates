@@ -51,6 +51,13 @@ struct Nodedon
       setNodePointer<T>(ptr, node);
       return ptr;
     }
+    template<typename C, typename... Cs>
+    Pointer<Node> add(Pointer<Node>& node, C&& c, Cs&&... cs)
+    {
+      add<C>(node, std::forward<C>(c));
+      add<Cs...>(node, std::forward<Cs...>(cs...));
+      return node;
+    }
 
     template<typename T>
     Cabinet<T>& get()
