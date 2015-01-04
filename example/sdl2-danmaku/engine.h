@@ -43,17 +43,15 @@ struct Entity;
 struct Position;
 struct Sprite;
 struct Text;
+struct Bullet;
 
 using EventBus = Eventful::QueuedBus<KeyPress, KeyRelease, Update>;
-using N = Nodedon<Entity, Position, Sprite, Text>;
+using N = Nodedon<Entity, Position, Sprite, Text, Bullet>;
 using Node = N::Pointer<N::Node>;
 
-using S = Scenery<Scene>;
-
-enum PropertyName { PROP_VALUE, PROP_OLD_VALUE, PROP_ACTIVE };
 struct Entity
 {
-  using PropertyKey = int;
+  using PropertyKey = std::string;
   using PropertyValue = boost::variant<float, int, bool>;
   using PropertyMap = std::unordered_map<PropertyKey, PropertyValue>;
 
@@ -83,9 +81,10 @@ struct Position
 struct Sprite : public N::NodeAware
 {
   Sprite() = default;
-  Sprite(SDL_Texture* texture);
+  Sprite(SDL_Texture* texture, SDL_Rect&& src = {0,0,0,0}, SDL_Rect&& rect = {0,0,0,0});
 
   SDL_Texture* texture;
+  SDL_Rect src;
   SDL_Rect rect;
   float opacity = 1.0f;
 };
@@ -105,24 +104,54 @@ struct Text : public N::NodeAware
   static TTF_Font* font;
 };
 
+struct Bullet : public N::NodeAware
+{
+  using Behavior = std::function<void(Bullet&)>;
+  Bullet() = default;
+  Bullet(int life, Behavior&& behavior) : life(life), time(0), behavior(behavior) {}
+  int life;
+  int time;
+  Behavior behavior;
+};
+
+using S = Scenery<Scene>;
+
 struct Scene : public S::ManagerAware
 {
   Scene(SDL_Renderer* renderer) : textureMap(renderer) {}
   using NodeKey = std::string;
+  using Deferred = std::function<void()>;
   Node add(NodeKey const& key, N::Node&& node);
 
   template<typename Component, typename... Components>
   Node add(NodeKey const& key, N::Node&& node, Component&& c, Components&&... cs)
   {
     Node n = add(key, std::forward<N::Node>(node));
+    nodes.add(n, std::forward<Component>(c), std::forward<Components...>(cs...));
+    return n;
+  }
+
+  Node addAnonymous(N::Node&& node);
+
+  template<typename Component, typename... Components>
+  Node addAnonymous(N::Node&& node, Component&& c, Components&&... cs)
+  {
+    Node n = addAnonymous(std::forward<N::Node>(node));
     nodes.add(n, std::forward<Component>(c), std::forward<Components>(cs)...);
     return n;
+  }
+
+  void defer(Deferred&& d)
+  {
+    deferred.push_back(d);
   }
 
   N::Context nodes;
   EventBus bus;
   std::unordered_map<NodeKey, Node> nodesById;
   TextureMap textureMap;
+
+  std::vector<Deferred> deferred;
 };
 
 
@@ -136,4 +165,5 @@ void Entity::on(F&& f)
 {
   subs.template get<T>() = scene->bus.sub<T>(std::forward<F>(f));
 }
+
 #endif

@@ -15,7 +15,7 @@ public:
   template<typename TT>
   typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, TT&>::type get()
   {
-    return rest.get<TT>();
+    return rest.template get<TT>();
   }
 
 private:
@@ -47,7 +47,7 @@ public:
   template<typename TT>
   typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, Container<TT>&>::type get()
   {
-    return rest.get<TT>();
+    return rest.template get<TT>();
   }
 
 private:
@@ -80,7 +80,7 @@ public:
   template<typename TT>
   typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, Container<Wrapper<TT>>&>::type get()
   {
-    return rest.get<TT>();
+    return rest.template get<TT>();
   }
 
 private:

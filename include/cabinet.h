@@ -1,9 +1,11 @@
 #include <vector>
 #include <unordered_map>
 
-template<typename T>
+template<typename TT>
 class Cabinet
 {
+  using T = typename std::remove_reference<TT>::type;
+
 private:
   struct Folder
   {
@@ -77,7 +79,10 @@ public:
     }
     void remove()
     {
-      cabinet->removeById(id);
+      if(cabinet)
+      {
+        cabinet->removeById(id);
+      }
     }
     operator bool() const
     {
@@ -96,7 +101,7 @@ public:
   Pointer insert(T&& t)
   {
     std::size_t id = next;
-    map.insert(std::make_pair(id, contents.size()));
+    map.emplace(std::make_pair(id, contents.size()));
     ++next;
 
     size_type prevCapacity = contents.capacity();
@@ -113,7 +118,7 @@ public:
     return contents.size();
   }
 
-  T& at(std::size_t index) const
+  T& at(std::size_t index)
   {
     return contents.at(index).content;
   }
@@ -123,7 +128,7 @@ public:
     Folder& f = contents.at(index);
     map.at(contents.back().id) = index;
     map.erase(f.id);
-    f = std::move(contents.back());
+    f = contents.back();
     contents.pop_back();
     ++version;
   }

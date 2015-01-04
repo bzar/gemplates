@@ -6,4 +6,5 @@ include_directories(
 )
 
 add_subdirectory(sdl2-pong)
+add_subdirectory(sdl2-danmaku)
 

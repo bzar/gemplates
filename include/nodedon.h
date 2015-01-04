@@ -1,6 +1,5 @@
 #include "cabinet.h"
 #include "typetuple.h"
-#include <boost/variant.hpp>
 #include <type_traits>
 
 template<typename NodeBase, typename... Components>
@@ -19,7 +18,7 @@ struct Nodedon
     template<typename T>
     Pointer<T> get()
     {
-      return components.get<T>();
+      return components.template get<T>();
     }
   };
 
@@ -47,7 +46,7 @@ struct Nodedon
     Pointer<T> add(Pointer<Node>& node, T&& component)
     {
       auto ptr = d.template get<T>().insert(std::forward<T>(component));
-      node->components.get<T>() = ptr;
+      node->components.template get<T>() = ptr;
       setNodePointer<T>(ptr, node);
       return ptr;
     }
@@ -55,8 +54,17 @@ struct Nodedon
     Pointer<Node> add(Pointer<Node>& node, C&& c, Cs&&... cs)
     {
       add<C>(node, std::forward<C>(c));
-      add<Cs...>(node, std::forward<Cs...>(cs...));
+      add<Cs...>(node, std::forward<Cs>(cs)...);
       return node;
+    }
+    void remove(Pointer<Node> node)
+    {
+      for(Pointer<Node>& child : node->children)
+      {
+        remove(child);
+      }
+      helper<Components...>::removeComponents(node);
+      node.remove();
     }
 
     template<typename T>
@@ -77,6 +85,25 @@ struct Nodedon
     setNodePointer(Pointer<T>&, Pointer<Node>&)
     {
     }
+
+    template<typename... Cs>
+    struct helper
+    {
+      static void removeComponents(Pointer<Node>&)
+      {
+      }
+    };
+
+    template<typename C, typename... Cs>
+    struct helper<C, Cs...>
+    {
+      static void removeComponents(Pointer<Node>& node)
+      {
+        node->components.template get<C>().remove();
+        helper<Cs...>::removeComponents(node);
+      }
+    };
+
 
     ContainerTuple<Cabinet, Node, Components...> d;
   };
