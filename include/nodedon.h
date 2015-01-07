@@ -1,12 +1,16 @@
 #include "cabinet.h"
 #include "typetuple.h"
 #include <type_traits>
+#include <vector>
+#include "unrolled_list.h"
 
 template<typename NodeBase, typename... Components>
 struct Nodedon
 {
   template<typename T>
-  using Pointer = typename Cabinet<T>::Pointer;
+  using Container = UnrolledList<T>;
+  template<typename T>
+  using Pointer = typename Container<T>::Reference;
 
   struct Node : public NodeBase
   {
@@ -43,9 +47,9 @@ struct Nodedon
       return ptr;
     }
     template<typename T>
-    Pointer<T> add(Pointer<Node>& node, T&& component)
+    Pointer<typename std::remove_reference<T>::type> add(Pointer<Node>& node, T&& component)
     {
-      auto ptr = d.template get<T>().insert(std::forward<T>(component));
+      auto ptr = d.template get<T>().emplace(std::forward<T>(component));
       node->components.template get<T>() = ptr;
       setNodePointer<T>(ptr, node);
       return ptr;
@@ -63,12 +67,12 @@ struct Nodedon
       {
         remove(child);
       }
-      helper<Components...>::removeComponents(node);
-      node.remove();
+      helper<Components...>::removeComponents(*this, node);
+      get<Node>().remove(node);
     }
 
     template<typename T>
-    Cabinet<T>& get()
+    Container<T>& get()
     {
       return d.template get<T>();
     }
@@ -89,7 +93,7 @@ struct Nodedon
     template<typename... Cs>
     struct helper
     {
-      static void removeComponents(Pointer<Node>&)
+      static void removeComponents(Context&, Pointer<Node>&)
       {
       }
     };
@@ -97,14 +101,19 @@ struct Nodedon
     template<typename C, typename... Cs>
     struct helper<C, Cs...>
     {
-      static void removeComponents(Pointer<Node>& node)
+      static void removeComponents(Context& ctx, Pointer<Node>& node)
       {
-        node->components.template get<C>().remove();
-        helper<Cs...>::removeComponents(node);
+        Container<C>& c = ctx.template get<C>();
+        Pointer<C> ptr = node->components.template get<C>();
+        if(ptr)
+        {
+          c.remove(ptr);
+        }
+        helper<Cs...>::removeComponents(ctx, node);
       }
     };
 
 
-    ContainerTuple<Cabinet, Node, Components...> d;
+    ContainerTuple<Container, Node, Components...> d;
   };
 };

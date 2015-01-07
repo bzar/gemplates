@@ -2,7 +2,14 @@
 
 Node Scene::add(const Scene::NodeKey& key, N::Node&& node)
 {
-  auto ptr = nodes.add(std::forward<N::Node>(node));
+  auto ptr = addAnonymous(std::forward<N::Node>(node));
+  nodesById.emplace(std::make_pair(key, ptr));
+  ptr->scene = this;
+  return ptr;
+}
+Node Scene::add(const Scene::NodeKey& key, N::Node&& node, Node parent)
+{
+  auto ptr = addAnonymous(parent, std::forward<N::Node>(node));
   nodesById.emplace(std::make_pair(key, ptr));
   ptr->scene = this;
   return ptr;
@@ -13,6 +20,25 @@ Node Scene::addAnonymous(N::Node&& node)
   auto ptr = nodes.add(std::forward<N::Node>(node));
   ptr->scene = this;
   return ptr;
+}
+Node Scene::addAnonymous(Node parent, N::Node&& node)
+{
+  auto ptr = nodes.add(std::forward<N::Node>(node), parent);
+  ptr->scene = this;
+  return ptr;
+}
+
+void Scene::remove(const Scene::NodeKey& key)
+{
+  auto iter = nodesById.find(key);
+  if(iter != nodesById.end())
+  {
+    Node toDelete = iter->second;
+    defer([this, toDelete, key] {
+      nodes.remove(toDelete);
+      nodesById.erase(key);
+    });
+  }
 }
 
 void gameloop(S::Manager& scenery, SDL_Renderer* renderer)
@@ -51,25 +77,26 @@ bool input(Scene* scene)
 
 bool update(Scene* scene)
 {
-  for(auto& d : scene->deferred)
+  while(!scene->deferred.empty())
   {
-    d();
+    scene->deferred.front()();
+    scene->deferred.pop();
   }
-  scene->deferred.clear();
 
   scene->bus.process();
 
-  Cabinet<Bullet>& bullets = scene->nodes.get<Bullet>();
+  N::Container<Bullet>& bullets = scene->nodes.get<Bullet>();
 
-  for(unsigned int i = 0; i < bullets.size(); ++i)
+  for(Bullet& bullet : bullets)
   {
-    Bullet& bullet = bullets.at(i);
     --bullet.life;
 
     if(bullet.life == 0)
     {
-      scene->nodes.remove(bullet.node);
-      --i;
+      Node n = bullet.node;
+      scene->defer([scene, n] {
+        scene->nodes.remove(n);
+      });
       continue;
     }
 
@@ -91,7 +118,7 @@ bool update(Scene* scene)
     pos.w = sprite.rect.w;
     pos.h = sprite.rect.h;
     sprite.rect.x = static_cast<int>(pos.x - pos.w/2);
-    sprite.rect.y = static_cast<int>(pos.y - pos.w/2);
+    sprite.rect.y = static_cast<int>(pos.y - pos.h/2);
   }
   for(Text& text : scene->nodes.get<Text>())
   {
@@ -116,11 +143,11 @@ void render(Scene* scene, SDL_Renderer* renderer)
     SDL_SetTextureAlphaMod(sprite.texture, 255 * sprite.opacity);
     if(sprite.src.w)
     {
-      SDL_RenderCopy(renderer, sprite.texture, &sprite.src, &sprite.rect);
+      SDL_RenderCopyEx(renderer, sprite.texture, &sprite.src, &sprite.rect, sprite.angle, /*&sprite.center*/nullptr, sprite.flip);
     }
     else
     {
-      SDL_RenderCopy(renderer, sprite.texture, nullptr, &sprite.rect);
+      SDL_RenderCopyEx(renderer, sprite.texture, nullptr, &sprite.rect, sprite.angle, /*&sprite.center*/nullptr, sprite.flip);
     }
   }
 
@@ -168,6 +195,8 @@ Sprite::Sprite(SDL_Texture* texture, SDL_Rect&& src, SDL_Rect&& rect) : texture(
   if(rect.w == 0)
   {
     SDL_QueryTexture(texture, NULL, NULL, &this->rect.w, &this->rect.h);
+    center = {this->rect.w/2, this->rect.h/2};
+    flip = SDL_FLIP_NONE;
   }
 }
 

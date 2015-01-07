@@ -6,6 +6,7 @@
 #include <SDL2/SDL_ttf.h>
 
 #include <boost/variant.hpp>
+#include <queue>
 #include "scenery.h"
 #include "eventful.h"
 #include "nodedon.h"
@@ -87,6 +88,9 @@ struct Sprite : public N::NodeAware
   SDL_Rect src;
   SDL_Rect rect;
   float opacity = 1.0f;
+  float angle = 0;
+  SDL_Point center = {0, 0};
+  SDL_RendererFlip flip = SDL_FLIP_NONE;
 };
 
 struct Text : public N::NodeAware
@@ -122,6 +126,7 @@ struct Scene : public S::ManagerAware
   using NodeKey = std::string;
   using Deferred = std::function<void()>;
   Node add(NodeKey const& key, N::Node&& node);
+  Node add(NodeKey const& key, N::Node&& node, Node parent);
 
   template<typename Component, typename... Components>
   Node add(NodeKey const& key, N::Node&& node, Component&& c, Components&&... cs)
@@ -130,8 +135,16 @@ struct Scene : public S::ManagerAware
     nodes.add(n, std::forward<Component>(c), std::forward<Components...>(cs...));
     return n;
   }
+  template<typename Component, typename... Components>
+  Node add(NodeKey const& key, Node parent, N::Node&& node, Component&& c, Components&&... cs)
+  {
+    Node n = add(key, std::forward<N::Node>(node), parent);
+    nodes.add(n, std::forward<Component>(c), std::forward<Components...>(cs...));
+    return n;
+  }
 
   Node addAnonymous(N::Node&& node);
+  Node addAnonymous(Node parent, N::Node&& node);
 
   template<typename Component, typename... Components>
   Node addAnonymous(N::Node&& node, Component&& c, Components&&... cs)
@@ -140,10 +153,19 @@ struct Scene : public S::ManagerAware
     nodes.add(n, std::forward<Component>(c), std::forward<Components>(cs)...);
     return n;
   }
+  template<typename Component, typename... Components>
+  Node addAnonymous(Node parent, N::Node&& node, Component&& c, Components&&... cs)
+  {
+    Node n = addAnonymous(parent, std::forward<N::Node>(node));
+    nodes.add(n, std::forward<Component>(c), std::forward<Components>(cs)...);
+    return n;
+  }
+
+  void remove(NodeKey const& key);
 
   void defer(Deferred&& d)
   {
-    deferred.push_back(d);
+    deferred.push(d);
   }
 
   N::Context nodes;
@@ -151,7 +173,7 @@ struct Scene : public S::ManagerAware
   std::unordered_map<NodeKey, Node> nodesById;
   TextureMap textureMap;
 
-  std::vector<Deferred> deferred;
+  std::queue<Deferred> deferred;
 };
 
 

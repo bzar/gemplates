@@ -24,3 +24,6 @@ add_test(cabinet-test-simple cabinet-test-simple)
 
 add_executable(nodedon-test-simple nodedon-simple.cpp)
 add_test(nodedon-test-simple nodedon-test-simple)
+
+add_executable(unrolled_list-test-simple unrolled_list-simple.cpp)
+add_test(unrolled_list-test-simple unrolled_list-test-simple)

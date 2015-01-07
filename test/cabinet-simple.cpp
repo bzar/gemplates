@@ -12,7 +12,7 @@ int main()
   auto bar = cabinet.insert("Bar");
   auto baz = cabinet.insert("Baz");
 
-  cabinet.remove(0);
+  cabinet.remove(ptr);
 
   assert(*foo == "Foo");
   assert(*bar == "Bar");

@@ -1,4 +1,4 @@
-#include <vector>
+#include "unrolled_list.h"
 #include <unordered_map>
 
 template<typename TT>
@@ -12,6 +12,9 @@ private:
     std::size_t id;
     T content;
   };
+
+  using Container = UnrolledList<Folder>;
+  using ContainerRef = typename Container::Reference;
 public:
   typedef T value_type;
   typedef T* pointer;
@@ -47,8 +50,8 @@ public:
     iterator operator++(int c) { return iterator(i.operator++(c)); }
   private:
     friend class Cabinet<T>;
-    iterator(typename std::vector<Folder>::iterator i) : i(i) {}
-    typename std::vector<Folder>::iterator i;
+    iterator(typename Container::iterator i) : i(i) {}
+    typename Container::iterator i;
   };
 
   Cabinet() = default;
@@ -101,16 +104,11 @@ public:
   Pointer insert(T&& t)
   {
     std::size_t id = next;
-    map.emplace(std::make_pair(id, contents.size()));
+    ContainerRef ref = contents.emplace(Folder {id, t});
+    map.emplace(std::make_pair(id, ref));
     ++next;
 
-    size_type prevCapacity = contents.capacity();
-    contents.push_back({id, t});
-    if(contents.capacity() != prevCapacity)
-    {
-      ++version;
-    }
-    return {this, id, version, &contents.back().content};
+    return {this, id, version, &(ref->content)};
   }
 
   std::size_t size() const
@@ -123,13 +121,12 @@ public:
     return contents.at(index).content;
   }
 
-  void remove(std::size_t index)
+  void remove(Pointer p)
   {
-    Folder& f = contents.at(index);
-    map.at(contents.back().id) = index;
-    map.erase(f.id);
-    f = contents.back();
-    contents.pop_back();
+    Folder& f = *map.at(p.id);
+    auto iter = map.find(f.id);
+    contents.remove(iter->second);
+    map.erase(iter);
     ++version;
   }
 
@@ -142,19 +139,23 @@ private:
 
   T& get(std::size_t id)
   {
-    std::size_t index = map.at(id);
-    return contents.at(index).content;
+    ContainerRef ref = map.at(id);
+    return ref->content;
   }
 
   void removeById(std::size_t id)
   {
-    std::size_t index = map.at(id);
-    remove(index);
+    auto it = map.find(id);
+    if(it != map.end())
+    {
+      contents.remove(it->second);
+      map.erase(it);
+    }
   }
 
 
   std::size_t next = 1;
-  std::unordered_map<std::size_t, std::size_t> map;
-  std::vector<Folder> contents;
+  std::unordered_map<std::size_t, ContainerRef> map;
+  Container contents;
   unsigned int version = 0;
 };
