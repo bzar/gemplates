@@ -27,3 +27,6 @@ add_test(nodedon-test-simple nodedon-test-simple)
 
 add_executable(unrolled_list-test-simple unrolled_list-simple.cpp)
 add_test(unrolled_list-test-simple unrolled_list-test-simple)
+
+add_executable(componentstorage-test-simple componentstorage-simple.cpp)
+add_test(componentstorage-test-simple componentstorage-test-simple)

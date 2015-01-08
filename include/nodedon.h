@@ -2,13 +2,13 @@
 #include "typetuple.h"
 #include <type_traits>
 #include <vector>
-#include "unrolled_list.h"
+#include "componentstorage.h"
 
 template<typename NodeBase, typename... Components>
 struct Nodedon
 {
   template<typename T>
-  using Container = UnrolledList<T>;
+  using Container = ComponentContainer<T>;
   template<typename T>
   using Pointer = typename Container<T>::Reference;
 
@@ -37,7 +37,7 @@ struct Nodedon
 
     Pointer<Node> add(Node&& node, Pointer<Node> parent = {})
     {
-      auto ptr = d.template get<Node>().insert(std::forward<Node>(node));
+      auto ptr = storage.insert(std::forward<Node>(node));
 
       if(parent)
       {
@@ -49,7 +49,7 @@ struct Nodedon
     template<typename T>
     Pointer<typename std::remove_reference<T>::type> add(Pointer<Node>& node, T&& component)
     {
-      auto ptr = d.template get<T>().emplace(std::forward<T>(component));
+      auto ptr = storage.insert(std::forward<T>(component));
       node->components.template get<T>() = ptr;
       setNodePointer<T>(ptr, node);
       return ptr;
@@ -74,7 +74,7 @@ struct Nodedon
     template<typename T>
     Container<T>& get()
     {
-      return d.template get<T>();
+      return storage.template get<T>();
     }
 
   private:
@@ -113,7 +113,6 @@ struct Nodedon
       }
     };
 
-
-    ContainerTuple<Container, Node, Components...> d;
+    ComponentStorage<Node, Components...> storage;
   };
 };
