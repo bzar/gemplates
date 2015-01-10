@@ -1,36 +1,36 @@
 #include "nodedon.h"
-#include <iostream>
+#include <cassert>
 struct NodeBase
 {
 
 };
 
-struct Data0 {};
-struct Data1 {};
-struct Data2 {};
-struct Data3 {};
-struct Data4 {};
-struct Data5 {};
-struct Data6 {};
-struct Data7 {};
-
-using N = Nodedon<NodeBase, Data0, Data1, Data2, Data3, Data4, Data5, Data6, Data7>;
-
 int main()
 {
-  N::Context ctx;
+  Nodedon<NodeBase> n;
 
-  auto root = ctx.add(N::Node{});
-  ctx.add(root, Data0{});
-  auto child0 = ctx.add(N::Node{}, root);
-  ctx.add(child0, Data0{});
-  auto child1 = ctx.add(N::Node{}, root);
-  ctx.add(child1, Data1{});
+  auto root = n.insert({});
+  auto child0 = n.insert({}, root);
+  auto child1 = n.insert({}, root);
 
-  for(N::Node& node : ctx.get<N::Node>())
+  assert(root->children.size() == 2);
+  assert(child0->parent == root);
+  assert(child0->parent != child1);
+  assert(child0->parent == child1->parent);
+
+  for(int i = 0; i < 100; ++i)
   {
-    std::cout << "Node" << std::endl;
+    n.insert({}, child1);
   }
+
+  assert(child0->children.size() == 0);
+  assert(child1->children.size() == 100);
+
+  n.remove(child0);
+
+  assert(root->children.size() == 1);
+
+  n.remove(root);
 
   return 0;
 }

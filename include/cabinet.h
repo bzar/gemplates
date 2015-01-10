@@ -65,6 +65,15 @@ public:
     Pointer(Pointer const&) = default;
     Pointer& operator=(Pointer const&) = default;
 
+    bool operator==(Pointer const& other)
+    {
+      return cabinet == other.cabinet && id == other.id;
+    }
+    bool operator!=(Pointer const& other)
+    {
+      return !operator==(other);
+    }
+
     T& operator*() const
     {
       if(!cached || version != cabinet->version)

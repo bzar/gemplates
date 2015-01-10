@@ -2,117 +2,79 @@
 #include "typetuple.h"
 #include <type_traits>
 #include <vector>
-#include "componentstorage.h"
+#include <algorithm>
 
-template<typename NodeBase, typename... Components>
-struct Nodedon
+template<typename NodeBase>
+class Nodedon
 {
-  template<typename T>
-  using Container = ComponentContainer<T>;
-  template<typename T>
-  using Pointer = typename Container<T>::Reference;
+public:
+  struct Node;
+  using NodeRef = typename Cabinet<Node>::Pointer;
 
   struct Node : public NodeBase
   {
     using NodeBase::NodeBase;
-    Pointer<Node> parent;
-    std::vector<Pointer<Node>> children;
-    ContainerTuple<Pointer, Components...> components;
-
-    template<typename T>
-    Pointer<T> get()
-    {
-      return components.template get<T>();
-    }
+    NodeRef parent;
+    std::vector<NodeRef> children;
   };
 
   struct NodeAware
   {
-    Pointer<Node> node;
+    NodeRef node;
   };
 
-  class Context
+  NodeRef insert(Node&& node)
   {
-  public:
+    return nodes.insert(std::forward<Node>(node));
+  }
 
-    Pointer<Node> add(Node&& node, Pointer<Node> parent = {})
-    {
-      auto ptr = storage.insert(std::forward<Node>(node));
+  NodeRef insert(Node&& node, NodeRef parent)
+  {
+    NodeRef ref = nodes.insert(std::forward<Node>(node));
+    ref->parent = parent;
+    parent->children.push_back(ref);
+    return ref;
+  }
 
-      if(parent)
-      {
-        ptr->parent = parent;
-        parent->children.push_back(ptr);
-      }
-      return ptr;
-    }
-    template<typename T>
-    Pointer<typename std::remove_reference<T>::type> add(Pointer<Node>& node, T&& component)
+  void remove(NodeRef node)
+  {
+    // Remove from parent's children
+    if(node->parent)
     {
-      auto ptr = storage.insert(std::forward<T>(component));
-      node->components.template get<T>() = ptr;
-      setNodePointer<T>(ptr, node);
-      return ptr;
-    }
-    template<typename C, typename... Cs>
-    Pointer<Node> add(Pointer<Node>& node, C&& c, Cs&&... cs)
-    {
-      add<C>(node, std::forward<C>(c));
-      add<Cs...>(node, std::forward<Cs>(cs)...);
-      return node;
-    }
-    void remove(Pointer<Node> node)
-    {
-      for(Pointer<Node>& child : node->children)
-      {
-        remove(child);
-      }
-      helper<Components...>::removeComponents(*this, node);
-      get<Node>().remove(node);
+      auto& cs = node->parent->children;
+      cs.erase(std::remove(cs.begin(), cs.end(), node));
     }
 
-    template<typename T>
-    Container<T>& get()
+    // Remove own children
+    for(NodeRef child : node->children)
     {
-      return storage.template get<T>();
+      child.remove();
     }
 
-  private:
-    template<typename T>
-    typename std::enable_if<std::is_base_of<NodeAware, T>::value, void>::type
-    setNodePointer(Pointer<T>& t, Pointer<Node>& node)
-    {
-      t->node = node;
-    }
-    template<typename T>
-    typename std::enable_if<!std::is_base_of<NodeAware, T>::value, void>::type
-    setNodePointer(Pointer<T>&, Pointer<Node>&)
-    {
-    }
+    // Remove self
+    node.remove();
+  }
 
-    template<typename... Cs>
-    struct helper
-    {
-      static void removeComponents(Context&, Pointer<Node>&)
-      {
-      }
-    };
+  template<typename T, typename T2, typename... Ts>
+  void setNode(T& t, T2& t2, Ts&... ts, NodeRef node)
+  {
+    setNode(t, node);
+    setNode(t2, ts..., node);
+  }
 
-    template<typename C, typename... Cs>
-    struct helper<C, Cs...>
-    {
-      static void removeComponents(Context& ctx, Pointer<Node>& node)
-      {
-        Container<C>& c = ctx.template get<C>();
-        Pointer<C> ptr = node->components.template get<C>();
-        if(ptr)
-        {
-          c.remove(ptr);
-        }
-        helper<Cs...>::removeComponents(ctx, node);
-      }
-    };
+  template<typename T>
+  static typename std::enable_if<std::is_base_of<NodeAware, T>::value, void>::type
+  setNode(T& t, NodeRef node)
+  {
+    t.node = node;
+  }
+  template<typename T>
+  static typename std::enable_if<!std::is_base_of<NodeAware, T>::value, void>::type
+  setNode(T&, NodeRef)
+  {
+  }
 
-    ComponentStorage<Node, Components...> storage;
-  };
+private:
+  Cabinet<Node> nodes;
 };
+

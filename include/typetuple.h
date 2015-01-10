@@ -13,7 +13,7 @@ public:
     return t;
   }
   template<typename TT>
-  typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, TT&>::type get()
+  typename std::enable_if<!std::is_same<T, TT>::value, TT&>::type get()
   {
     return rest.template get<TT>();
   }
@@ -45,14 +45,35 @@ public:
     return container;
   }
   template<typename TT>
-  typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, Container<TT>&>::type get()
+  typename std::enable_if<!std::is_same<T, TT>::value, Container<TT>&>::type get()
   {
     return rest.template get<TT>();
   }
 
-private:
+  template<typename TT, typename... TTs>
+  void partialAssign(ContainerTuple<Container, TT, TTs...> const& other)
+  {
+    assign(other);
+    rest.partialAssign(other);
+  }
+
   Container<T> container;
   ContainerTuple<Container, Ts...> rest;
+private:
+  template<typename TT>
+  typename std::enable_if<!std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT> const&)
+  {
+  }
+  template<typename TT, typename... TTs>
+  typename std::enable_if<std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT, TTs...> const& other)
+  {
+    container = other.container;
+  }
+  template<typename TT, typename TT2, typename... TTs>
+  typename std::enable_if<!std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT, TT2, TTs...> const& other)
+  {
+    assign(other.rest);
+  }
 };
 
 template<template<typename...> class Container, typename T>
@@ -64,8 +85,27 @@ public:
   {
     return container;
   }
-private:
+  template<typename TT, typename... TTs>
+  void partialAssign(ContainerTuple<Container, TT, TTs...> const& other)
+  {
+    assign(other);
+  }
   Container<T> container;
+private:
+  template<typename TT>
+  typename std::enable_if<!std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT> const&)
+  {
+  }
+  template<typename TT, typename... TTs>
+  typename std::enable_if<std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT, TTs...> const& other)
+  {
+    container = other.container;
+  }
+  template<typename TT, typename TT2, typename... TTs>
+  typename std::enable_if<!std::is_same<T, TT>::value>::type assign(ContainerTuple<Container, TT, TT2, TTs...> const& other)
+  {
+    assign(other.rest);
+  }
 };
 
 template<template<typename...> class Container, template<typename> class Wrapper , typename T, typename... Ts>
@@ -78,7 +118,7 @@ public:
     return container;
   }
   template<typename TT>
-  typename std::enable_if<std::__not_<std::is_same<T, TT>>::value, Container<Wrapper<TT>>&>::type get()
+  typename std::enable_if<!std::is_same<T, TT>::value, Container<Wrapper<TT>>&>::type get()
   {
     return rest.template get<TT>();
   }
@@ -101,5 +141,6 @@ public:
 private:
   Container<Wrapper<T>> container;
 };
+
 #endif // TYPETUPLE
 

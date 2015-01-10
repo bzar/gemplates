@@ -133,6 +133,7 @@ template<typename T, std::size_t NODE_SIZE>
 void UnrolledList<T, NODE_SIZE>::remove(UnrolledList<T, NODE_SIZE>::Reference const& r)
 {
   r.element->deleted = true;
+  r.element->data = {};
   _free.push_back(r.element);
   --_size;
 }

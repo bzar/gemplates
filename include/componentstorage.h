@@ -72,20 +72,18 @@ private:
   UnrolledList<C> content;
 };
 
-
+template<typename C>
+using ComponentRef = typename ComponentContainer<C>::Reference;
 
 template<typename... Components>
 class ComponentStorage
 {
 public:
-  template<typename C>
-  using Reference = typename ComponentContainer<C>::Reference;
-
   template<typename... Cs>
-  using ReferenceTuple = ContainerTuple<Reference, Cs...>;
+  using ReferenceTuple = ContainerTuple<ComponentRef, Cs...>;
 
   template<typename C>
-  Reference<C> insert(C&& c)
+  ComponentRef<C> insert(C&& c)
   {
     ComponentContainer<C>& ctr = containers.template get<C>();
     return ctr.insert(std::forward<C>(c));
@@ -106,7 +104,7 @@ public:
   }
 
   template<typename C>
-  void remove(Reference<C> ref)
+  void remove(ComponentRef<C> ref)
   {
     get<C>().remove(ref);
   }

@@ -1,8 +1,8 @@
 #include "engine.h"
 
-Node Scene::add(const Scene::NodeKey& key, N::Node&& node)
+Node Scene::add(const Scene::NodeKey& key, Nodes::Node&& node)
 {
-  auto ptr = nodes.add(std::forward<N::Node>(node));
+  auto ptr = nodes.insert(std::forward<Nodes::Node>(node));
   nodesById.emplace(std::make_pair(key, ptr));
   ptr->scene = this;
   return ptr;
@@ -47,13 +47,13 @@ bool update(Scene* scene)
   scene->bus.process();
   scene->bus.immediate<Update>({});
 
-  for(Position& pos : scene->nodes.get<Position>())
+  for(Position& pos : scene->components.get<Position>())
   {
     pos.x += pos.vx;
     pos.y += pos.vy;
   }
 
-  for(Sprite& sprite : scene->nodes.get<Sprite>())
+  for(Sprite& sprite : scene->components.get<Sprite>())
   {
     Position& pos = *sprite.node->get<Position>();
     sprite.rect.x = static_cast<int>(pos.x);
@@ -61,7 +61,7 @@ bool update(Scene* scene)
     pos.w = sprite.rect.w;
     pos.h = sprite.rect.h;
   }
-  for(Text& text : scene->nodes.get<Text>())
+  for(Text& text : scene->components.get<Text>())
   {
     Position& pos = *text.node->get<Position>();
     text.rect.x = static_cast<int>(pos.x);
@@ -75,7 +75,7 @@ void render(Scene* scene, SDL_Renderer* renderer)
   SDL_SetRenderDrawColor(renderer, 32, 32, 32, 255);
   SDL_RenderClear(renderer);
 
-  for(auto& sprite : scene->nodes.get<Sprite>())
+  for(auto& sprite : scene->components.get<Sprite>())
   {
 #ifdef DEBUG_DRAW
     SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
@@ -90,7 +90,7 @@ void render(Scene* scene, SDL_Renderer* renderer)
   {
     Text::font = TTF_OpenFont( "ttf/DejaVuSans.ttf", 28 );
   }
-  for(auto& text : scene->nodes.get<Text>())
+  for(auto& text : scene->components.get<Text>())
   {
 
     if(!text.texture && !text.text.empty())

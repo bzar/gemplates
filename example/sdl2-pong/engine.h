@@ -9,6 +9,7 @@
 #include "scenery.h"
 #include "eventful.h"
 #include "nodedon.h"
+#include "componentstorage.h"
 
 struct KeyPress
 {
@@ -45,8 +46,9 @@ struct Sprite;
 struct Text;
 
 using EventBus = Eventful::QueuedBus<KeyPress, KeyRelease, Update>;
-using N = Nodedon<Entity, Position, Sprite, Text>;
-using Node = N::Pointer<N::Node>;
+using Nodes = Nodedon<Entity>;
+using Node = Nodes::NodeRef;
+using Components = ComponentStorage<Position, Sprite, Text>;
 
 using S = Scenery<Scene>;
 
@@ -70,8 +72,16 @@ struct Entity
   template<typename T, typename F>
   void on(F&& f);
 
+  template<typename C>
+  ComponentRef<C> get()
+  {
+    return components.template get<C>();
+  }
+
   Scene* scene;
   PropertyMap properties;
+
+  ContainerTuple<ComponentRef, Position, Sprite, Text> components;
   ContainerTuple<Eventful::Sub, KeyPress, KeyRelease, Update> subs;
 };
 
@@ -80,7 +90,7 @@ struct Position
   float x, y, w, h, vx, vy;
 };
 
-struct Sprite : public N::NodeAware
+struct Sprite : public Nodes::NodeAware
 {
   Sprite() = default;
   Sprite(SDL_Texture* texture);
@@ -90,7 +100,7 @@ struct Sprite : public N::NodeAware
   float opacity = 1.0f;
 };
 
-struct Text : public N::NodeAware
+struct Text : public Nodes::NodeAware
 {
   Text();
   Text(std::string const& text, SDL_Color color = {255,255,255,255});
@@ -109,17 +119,20 @@ struct Scene : public S::ManagerAware
 {
   Scene(SDL_Renderer* renderer) : textureMap(renderer) {}
   using NodeKey = std::string;
-  Node add(NodeKey const& key, N::Node&& node);
+  Node add(NodeKey const& key, Nodes::Node&& node);
 
-  template<typename Component, typename... Components>
-  Node add(NodeKey const& key, N::Node&& node, Component&& c, Components&&... cs)
+  template<typename C, typename... Cs>
+  Node add(NodeKey const& key, Nodes::Node&& node, C&& c, Cs&&... cs)
   {
-    Node n = add(key, std::forward<N::Node>(node));
-    nodes.add(n, std::forward<Component>(c), std::forward<Components>(cs)...);
+    Node n = add(key, std::forward<Nodes::Node>(node));
+    auto componentTuple = components.insert(std::forward<C>(c), std::forward<Cs>(cs)...);
+    n->components.partialAssign(componentTuple);
+    nodes.setNode(*n->components.get<C>(), *n->components.get<Cs>()..., n);
     return n;
   }
 
-  N::Context nodes;
+  Nodes nodes;
+  Components components;
   EventBus bus;
   std::unordered_map<NodeKey, Node> nodesById;
   TextureMap textureMap;
